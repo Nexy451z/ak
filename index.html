@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>暗記アプリ</title>
+    <style>
+        /* --- CSS Variables & Base Styles --- */
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --secondary: #64748b;
+            --accent: #f59e0b;
+            --bg-color: #f8fafc;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --card-bg: #ffffff;
+            
+            --success-bg: #dcfce7;
+            --success-border: #22c55e;
+            --success-text: #15803d;
+            
+            --error-bg: #fee2e2;
+            --error-border: #ef4444;
+            --error-text: #b91c1c;
+
+            --footer-height: 70px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            -webkit-tap-highlight-color: transparent;
+            /* フッターの分だけ余白を空ける */
+            padding-bottom: calc(var(--footer-height) + 1rem); 
+        }
+
+        /* --- Utility Classes --- */
+        .container { max-width: 640px; margin: 0 auto; padding: 1rem; min-height: 90vh; display: flex; flex-direction: column; }
+        .card { background: var(--card-bg); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 1rem; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: 700; }
+        .text-xl { font-size: 1.25rem; }
+        .text-2xl { font-size: 1.5rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-sub { color: var(--text-sub); }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mt-4 { margin-top: 1rem; }
+        .w-full { width: 100%; }
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .justify-between { justify-content: space-between; }
+        .items-center { align-items: center; }
+        .gap-2 { gap: 0.5rem; }
+
+        /* --- Buttons --- */
+        .btn {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-primary { background-color: var(--primary); color: white; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3); }
+        .btn-primary:hover:not(:disabled) { background-color: var(--primary-dark); }
+        .btn-secondary { background-color: #e2e8f0; color: var(--text-main); }
+        .btn-accent { background-color: var(--accent); color: white; }
+        
+        /* Hint Button */
+        .btn-hint {
+            background-color: transparent;
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            padding: 0.5rem;
+        }
+        .btn-hint:hover { background-color: #fffbeb; }
+
+        /* --- Mode Cards --- */
+        .mode-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+        .mode-card {
+            background: white; border: 2px solid #e2e8f0; border-radius: 1rem;
+            padding: 1.25rem; text-align: left; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .mode-card:hover { border-color: var(--primary); background-color: #eff6ff; transform: translateY(-2px); }
+        .mode-icon { font-size: 2rem; background: #f1f5f9; padding: 0.5rem; border-radius: 50%; }
+        .mode-info h3 { margin: 0; font-size: 1.1rem; color: var(--text-main); }
+        .mode-info p { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--text-sub); }
+
+        /* --- Quiz Options --- */
+        .options-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+        .btn-option {
+            position: relative; background-color: white; border: 2px solid #e2e8f0;
+            color: var(--text-main); text-align: left; padding: 1rem 1rem 1rem 3rem;
+            border-radius: 0.75rem; font-weight: 500; line-height: 1.4; transition: all 0.2s;
+        }
+        .btn-option::before {
+            content: attr(data-prefix); position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);
+            font-weight: bold; color: var(--primary); background: #eff6ff;
+            width: 1.5rem; height: 1.5rem; display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; font-size: 0.8rem;
+        }
+        .btn-option:hover:not(:disabled) { border-color: var(--primary); background-color: #eff6ff; }
+
+        /* Correct/Incorrect Styles */
+        .btn-option.correct { background-color: var(--success-bg); border-color: var(--success-border); color: var(--success-text); font-weight: bold; }
+        .btn-option.correct::after { content: '⭕'; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); }
+        .btn-option.incorrect { background-color: var(--error-bg); border-color: var(--error-border); color: var(--error-text); opacity: 0.8; }
+        .btn-option.incorrect::after { content: '❌'; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); }
+        .options-dimmed .btn-option:not(.correct):not(.incorrect) { opacity: 0.5; border-color: transparent; }
+
+        /* Feedback Box */
+        .feedback-box {
+            background-color: #f8fafc; border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;
+            border-left: 6px solid var(--secondary); animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .feedback-box.correct { border-color: var(--success-border); background-color: #f0fdf4; }
+        .feedback-box.incorrect { border-color: var(--error-border); background-color: #fef2f2; }
+        .feedback-box.info { border-color: var(--accent); background-color: #fffbeb; }
+
+        /* --- Fixed Footer Navigation --- */
+        #quiz-footer {
+            position: fixed; bottom: 0; left: 0; width: 100%; height: var(--footer-height);
+            background: white; border-top: 1px solid #e2e8f0;
+            display: flex; justify-content: space-around; align-items: center;
+            padding: 0 1rem; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .nav-btn {
+            background: transparent; border: none; color: var(--text-main);
+            font-size: 0.9rem; font-weight: 600; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+            padding: 0.5rem 1rem; border-radius: 0.5rem;
+        }
+        .nav-btn:active { background-color: #f1f5f9; }
+        .nav-btn:disabled { color: #cbd5e1; cursor: default; background-color: transparent; }
+        .nav-btn span { font-size: 1.2rem; } /* icon size */
+
+        /* --- Map Modal (Overlay) --- */
+        #modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 200; display: flex; justify-content: center; align-items: flex-end;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        #modal-overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .modal-content {
+            background: white; width: 100%; max-width: 640px;
+            border-radius: 1.5rem 1.5rem 0 0; padding: 1.5rem;
+            max-height: 80vh; overflow-y: auto;
+            transform: translateY(100%); transition: transform 0.3s ease;
+        }
+        #modal-overlay.active .modal-content { transform: translateY(0); }
+
+        .map-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+            gap: 0.75rem; margin-top: 1rem;
+        }
+        .map-item {
+            aspect-ratio: 1; display: flex; justify-content: center; align-items: center;
+            border-radius: 0.75rem; font-weight: bold; font-size: 1rem;
+            background: #f1f5f9; color: var(--text-sub); cursor: pointer; border: 2px solid transparent;
+        }
+        .map-item.current { border-color: var(--primary); }
+        .map-item.correct { background-color: var(--success-bg); color: var(--success-text); }
+        .map-item.incorrect { background-color: var(--error-bg); color: var(--error-text); }
+        
+        /* Loading Spinner */
+        #loading-overlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,0.95);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 999; flex-direction: column;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #e2e8f0;
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- LOADING -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">読み込み中...</div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+        
+        <!-- 1. HOME SCREEN -->
+        <div id="screen-home" class="screen">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold" style="color: var(--primary);">暗記アプリ</h1>
+                <p class="text-sub">学習する問題集を選んでください</p>
+            </div>
+            <div id="quiz-list-container"></div>
+        </div>
+
+        <!-- 2. MODE SELECTION SCREEN -->
+        <div id="screen-mode" class="screen hidden">
+            <div class="text-center mb-6">
+                <h2 id="selected-quiz-title" class="text-xl font-bold mb-2">問題集タイトル</h2>
+                <p class="text-sub">学習モードを選択</p>
+            </div>
+
+            <div class="mode-grid">
+                <div onclick="startQuiz('sequential')" class="mode-card">
+                    <div class="mode-icon">📝</div>
+                    <div class="mode-info">
+                        <h3>順番に解く</h3>
+                        <p>第1問から順に出題します。</p>
+                    </div>
+                </div>
+                <div onclick="startQuiz('random')" class="mode-card">
+                    <div class="mode-icon">🎲</div>
+                    <div class="mode-info">
+                        <h3>ランダムで解く</h3>
+                        <p>順番をシャッフルして出題します。</p>
+                    </div>
+                </div>
+                <div onclick="startQuiz('infinite')" class="mode-card">
+                    <div class="mode-icon">♾️</div>
+                    <div class="mode-info">
+                        <h3>無限ランダム</h3>
+                        <p>全問終了せず、永遠に繰り返します。</p>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="switchScreen('screen-home')" class="btn btn-secondary mt-4">
+                ← 問題集一覧に戻る
+            </button>
+        </div>
+
+        <!-- 3. QUIZ SCREEN -->
+        <div id="screen-quiz" class="screen hidden">
+            <!-- Header -->
+            <div class="card" style="padding: 0.75rem 1.5rem; margin-bottom: 0.5rem;">
+                <div class="flex justify-between items-center">
+                    <span id="quiz-badge" class="text-sm font-bold text-white px-2 py-1 rounded bg-blue-500">Category</span>
+                    <span id="quiz-progress" class="text-sub text-sm font-bold">1 / 10</span>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="card">
+                <div id="quiz-stats" class="text-xs text-sub text-right mb-2" style="min-height: 1.2em;"></div>
+
+                <div id="question-text" class="text-xl font-bold mb-6 leading-relaxed">
+                    問題文がここに表示されます
+                </div>
+
+                <!-- Hint Button -->
+                <button id="hint-btn" class="btn btn-hint w-full" onclick="showHint()">
+                    💡 答え・解説を見る
+                </button>
+
+                <!-- Options -->
+                <div id="options-container" class="options-grid"></div>
+
+                <!-- Feedback Area -->
+                <div id="feedback-area" class="hidden">
+                    <div id="feedback-box" class="feedback-box">
+                        <div id="feedback-title" class="text-xl font-bold mb-2"></div>
+                        <div id="feedback-text" class="text-sm text-main"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Home Link -->
+            <div class="text-center mt-2">
+                <button onclick="confirmExit()" class="text-sub text-sm underline" style="background:none; border:none; cursor:pointer;">
+                    中断してホームへ戻る
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. RESULT SCREEN -->
+        <div id="screen-result" class="screen hidden">
+            <div class="card text-center">
+                <h2 class="text-2xl font-bold mb-4">結果発表🎉</h2>
+                <div class="text-5xl font-bold mb-2" style="color: var(--primary);">
+                    <span id="result-score">0</span> <span class="text-2xl text-sub">/ <span id="result-total">0</span></span>
+                </div>
+                <p class="text-sub mb-6">正解数</p>
+                
+                <div class="flex flex-col gap-2">
+                    <button id="retry-btn" class="btn btn-primary">🔄 もう一度同じモードで</button>
+                    <button onclick="reviewIncorrect()" class="btn btn-accent hidden" id="review-btn">📝 間違えた問題を見直す</button>
+                    <button onclick="switchScreen('screen-home')" class="btn btn-secondary">🏠 ホームに戻る</button>
+                </div>
+            </div>
+        </div>
+
+    </div> <!-- End Container -->
+
+    <!-- FIXED FOOTER (Navigation) -->
+    <div id="quiz-footer" class="hidden">
+        <button id="nav-prev" class="nav-btn" onclick="navigate(-1)">
+            <span>⬅️</span> 前へ
+        </button>
+        
+        <button id="nav-map" class="nav-btn" onclick="toggleMap()">
+            <span>🔢</span> 一覧
+        </button>
+        
+        <button id="nav-next" class="nav-btn" onclick="navigate(1)">
+            次へ <span>➡️</span>
+        </button>
+    </div>
+
+    <!-- MAP MODAL -->
+    <div id="modal-overlay" onclick="toggleMap()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xl font-bold">問題一覧</h3>
+                <button onclick="toggleMap()" style="border:none; background:none; font-size:1.5rem;">✕</button>
+            </div>
+            <div class="flex justify-between text-sm text-sub mb-4">
+                <span>🟢正解 🔴不正解 ⚪️未回答</span>
+                <span id="map-stats">正解率: -%</span>
+            </div>
+            <div id="map-grid" class="map-grid">
+                <!-- Grid Items -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================
+           GLOBAL VARIABLES & STATE
+           ========================================= */
+        let quizList = [];
+        let rawQuizData = [];   // Original data from JSON
+        let playQueue = [];     // Array of indexes [0, 1, 2...] or shuffled
+        let userAnswers = [];   // Stores state: { selected: string, isCorrect: bool } or null
+        let currentIndex = 0;
+        let currentMode = '';
+        let stats = {};         // Persistent stats for local storage
+        const STORAGE_KEY = 'anki_app_stats_pro_v1';
+
+        // DOM Elements
+        const el = {
+            loading: document.getElementById('loading-overlay'),
+            loadingText: document.getElementById('loading-text'),
+            quizList: document.getElementById('quiz-list-container'),
+            selectedTitle: document.getElementById('selected-quiz-title'),
+            
+            // Screens
+            screens: document.querySelectorAll('.screen'),
+            screenQuiz: document.getElementById('screen-quiz'),
+            
+            // Quiz UI
+            progress: document.getElementById('quiz-progress'),
+            badge: document.getElementById('quiz-badge'),
+            stats: document.getElementById('quiz-stats'),
+            question: document.getElementById('question-text'),
+            options: document.getElementById('options-container'),
+            hintBtn: document.getElementById('hint-btn'),
+            
+            // Feedback
+            feedbackArea: document.getElementById('feedback-area'),
+            feedbackBox: document.getElementById('feedback-box'),
+            feedbackTitle: document.getElementById('feedback-title'),
+            feedbackText: document.getElementById('feedback-text'),
+            
+            // Result
+            resultScore: document.getElementById('result-score'),
+            resultTotal: document.getElementById('result-total'),
+            retryBtn: document.getElementById('retry-btn'),
+            reviewBtn: document.getElementById('review-btn'),
+
+            // Navigation & Map
+            footer: document.getElementById('quiz-footer'),
+            navPrev: document.getElementById('nav-prev'),
+            navNext: document.getElementById('nav-next'),
+            modalOverlay: document.getElementById('modal-overlay'),
+            mapGrid: document.getElementById('map-grid'),
+            mapStats: document.getElementById('map-stats')
+        };
+
+        /* =========================================
+           INITIALIZATION
+           ========================================= */
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        async function initApp() {
+            loadStats();
+            try {
+                // JSONファイル取得 (同じ階層にあると仮定)
+                const res = await fetch('./quiz_list.json');
+                if (!res.ok) throw new Error('quiz_list.json Not Found');
+                quizList = await res.json();
+                renderQuizList();
+                hideLoading();
+            } catch (e) {
+                el.loadingText.innerHTML = `エラーが発生しました<br><span style="font-size:0.8em">${e.message}</span>`;
+                console.error(e);
+                if (window.location.protocol === 'file:') {
+                    alert('【注意】ローカルファイル(file://)では外部JSONを読み込めない場合があります。VS CodeのLive Serverなどを使用してください。');
+                }
+            }
+        }
+
+        function loadStats() {
+            try {
+                const s = localStorage.getItem(STORAGE_KEY);
+                if (s) stats = JSON.parse(s);
+            } catch(e) { console.error(e); }
+        }
+
+        function saveResultToStorage(id, isCorrect) {
+            if (!stats[id]) stats[id] = { correct: 0, total: 0 };
+            stats[id].total++;
+            if (isCorrect) stats[id].correct++;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+        }
+
+        /* =========================================
+           NAVIGATION & UI CONTROL
+           ========================================= */
+        function switchScreen(id) {
+            el.screens.forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            window.scrollTo(0, 0);
+            
+            // Footer visibility
+            if (id === 'screen-quiz') {
+                el.footer.classList.remove('hidden');
+            } else {
+                el.footer.classList.add('hidden');
+            }
+        }
+
+        function showLoading(msg = '読み込み中...') {
+            el.loadingText.textContent = msg;
+            el.loading.classList.remove('hidden');
+        }
+        function hideLoading() { el.loading.classList.add('hidden'); }
+
+        /* =========================================
+           QUIZ SELECTION Logic
+           ========================================= */
+        function renderQuizList() {
+            el.quizList.innerHTML = '';
+            if (!quizList.length) {
+                el.quizList.innerHTML = '<p class="text-center">問題集が見つかりません。</p>';
+                return;
+            }
+            quizList.forEach(quiz => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.style.cursor = 'pointer';
+                div.innerHTML = `
+                    <h3 class="text-xl font-bold" style="margin:0 0 0.5rem 0; color:var(--primary)">${quiz.title}</h3>
+                    <p class="text-sub" style="margin:0">${quiz.description || ''}</p>
+                `;
+                div.onclick = () => selectQuiz(quiz);
+                el.quizList.appendChild(div);
+            });
+        }
+
+        async function selectQuiz(quizInfo) {
+            showLoading('データを取得中...');
+            try {
+                const res = await fetch('./' + quizInfo.file);
+                if (!res.ok) throw new Error('Failed to load ' + quizInfo.file);
+                const json = await res.json();
+                rawQuizData = json.questions;
+                el.selectedTitle.textContent = json.title || quizInfo.title;
+                hideLoading();
+                switchScreen('screen-mode');
+            } catch (e) {
+                hideLoading();
+                alert('読み込みエラー: ' + e.message);
+            }
+        }
+
+        /* =========================================
+           GAMEPLAY LOGIC
+           ========================================= */
+        function startQuiz(mode) {
+            currentMode = mode;
+            currentIndex = 0;
+
+            // Generate Queue
+            if (mode === 'random') {
+                playQueue = rawQuizData.map((_, i) => i);
+                shuffleArray(playQueue);
+            } else if (mode === 'sequential') {
+                playQueue = rawQuizData.map((_, i) => i);
+            } else if (mode === 'infinite') {
+                // Infinite: creates a buffer, will be replenished
+                playQueue = rawQuizData.map((_, i) => i);
+                shuffleArray(playQueue);
+            }
+
+            // Initialize User Answers (Fill with null)
+            userAnswers = new Array(playQueue.length).fill(null);
+
+            el.retryBtn.onclick = () => startQuiz(mode);
+            switchScreen('screen-quiz');
+            goToQuestion(0);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // --- Main Display Function ---
+        function goToQuestion(index) {
+            // Boundary Checks
+            if (index < 0) return;
+            
+            // If Infinite mode and end reached, reshuffle and extend/reset
+            if (currentMode === 'infinite' && index >= playQueue.length) {
+                let newBatch = rawQuizData.map((_, i) => i);
+                shuffleArray(newBatch);
+                playQueue = playQueue.concat(newBatch);
+                // userAnswers need to extend too
+                const extension = new Array(newBatch.length).fill(null);
+                userAnswers = userAnswers.concat(extension);
+            } else if (currentMode !== 'infinite' && index >= playQueue.length) {
+                finishGame();
+                return;
+            }
+
+            currentIndex = index;
+            const dataIndex = playQueue[currentIndex];
+            const qData = rawQuizData[dataIndex];
+            const history = userAnswers[currentIndex]; // Check if answered
+
+            // UI Reset
+            el.feedbackArea.classList.add('hidden');
+            el.feedbackBox.className = 'feedback-box';
+            el.options.innerHTML = '';
+            el.options.classList.remove('options-dimmed');
+            el.hintBtn.classList.remove('hidden');
+            window.scrollTo(0, 0);
+
+            // Update Header
+            el.badge.textContent = qData.category || 'Q';
+            if (currentMode === 'infinite') {
+                const correctCount = userAnswers.filter(a => a && a.isCorrect).length;
+                el.progress.textContent = `無限モード (正解数: ${correctCount})`;
+            } else {
+                el.progress.textContent = `Question ${currentIndex + 1} / ${playQueue.length}`;
+            }
+
+            // Update Stats
+            const s = stats[qData.id];
+            el.stats.textContent = s ? `過去の正答率: ${Math.round((s.correct/s.total)*100)}%` : '';
+
+            // Text
+            el.question.textContent = qData.question;
+
+            // Create Options
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-option';
+                btn.dataset.prefix = ['A','B','C','D','E'][idx] || (idx+1);
+                btn.textContent = opt;
+                
+                // Click Event
+                btn.onclick = () => checkAnswer(currentIndex, opt, btn);
+                
+                el.options.appendChild(btn);
+            });
+
+            // If already answered, restore state
+            if (history) {
+                restoreAnswerState(history, qData);
+            }
+
+            updateFooterUI();
+        }
+
+        // --- Handling Answers ---
+        function checkAnswer(qIndex, selectedOption, clickedBtn) {
+            const dataIndex = playQueue[qIndex];
+            const qData = rawQuizData[dataIndex];
+            const isCorrect = (selectedOption === qData.correctAnswer);
+
+            // Save State
+            userAnswers[qIndex] = {
+                selected: selectedOption,
+                isCorrect: isCorrect
+            };
+
+            // Persistent Storage (Save stats)
+            saveResultToStorage(qData.id, isCorrect);
+
+            // Visual Update
+            renderFeedback(isCorrect, qData, selectedOption);
+            updateFooterUI(); // update map button color etc
+        }
+
+        // Render feedback (used by both new answer and history restore)
+        function renderFeedback(isCorrect, qData, selectedOption) {
+            const allBtns = el.options.querySelectorAll('button');
+            
+            // Lock UI
+            allBtns.forEach(b => b.disabled = true);
+            el.options.classList.add('options-dimmed');
+            el.hintBtn.classList.add('hidden');
+            el.feedbackArea.classList.remove('hidden');
+
+            // Find clicked/selected button
+            let targetBtn = null;
+            allBtns.forEach(b => {
+                if (b.textContent === selectedOption) targetBtn = b;
+            });
+
+            if (isCorrect) {
+                if (targetBtn) {
+                    targetBtn.classList.add('correct');
+                    targetBtn.classList.remove('incorrect');
+                }
+                el.feedbackBox.className = 'feedback-box correct';
+                el.feedbackTitle.textContent = '⭕ 正解！';
+                el.feedbackTitle.style.color = 'var(--success-text)';
+            } else {
+                if (targetBtn) targetBtn.classList.add('incorrect');
+                // Highlight real answer
+                allBtns.forEach(b => {
+                    if(b.textContent === qData.correctAnswer) {
+                        b.classList.add('correct');
+                        b.style.opacity = '1';
+                    }
+                });
+                el.feedbackBox.className = 'feedback-box incorrect';
+                el.feedbackTitle.textContent = '❌ 残念...';
+                el.feedbackTitle.style.color = 'var(--error-text)';
+            }
+            
+            el.feedbackText.textContent = qData.explanation;
+        }
+
+        // Restore visual state from history
+        function restoreAnswerState(history, qData) {
+            renderFeedback(history.isCorrect, qData, history.selected);
+        }
+
+        // Show Hint (Give up)
+        function showHint() {
+            const dataIndex = playQueue[currentIndex];
+            const qData = rawQuizData[dataIndex];
+
+            el.feedbackArea.classList.remove('hidden');
+            el.feedbackBox.className = 'feedback-box info';
+            el.feedbackTitle.textContent = '💡 答えと解説';
+            el.feedbackTitle.style.color = 'var(--accent)';
+            el.feedbackText.textContent = `正解は「${qData.correctAnswer}」です。\n\n${qData.explanation}`;
+            el.hintBtn.classList.add('hidden');
+        }
+
+        /* =========================================
+           NAVIGATION HANDLERS
+           ========================================= */
+        function navigate(direction) {
+            // direction: -1 (prev) or 1 (next)
+            const target = currentIndex + direction;
+            goToQuestion(target);
+        }
+
+        function updateFooterUI() {
+            // Prev Button
+            el.navPrev.disabled = (currentIndex === 0);
+
+            // Next Button Text logic
+            const isLast = (currentMode !== 'infinite' && currentIndex === playQueue.length - 1);
+            const hasAnswer = userAnswers[currentIndex] !== null;
+
+            const nextBtnSpan = el.navNext.querySelector('span');
+            
+            if (isLast) {
+                // Last Question
+                el.navNext.innerHTML = hasAnswer ? '結果へ <span>🏁</span>' : '終了 <span>🏁</span>';
+            } else {
+                // Normal
+                el.navNext.innerHTML = '次へ <span>➡️</span>';
+            }
+        }
+
+        function confirmExit() {
+            if(confirm('現在の学習を中断してホームに戻りますか？')) {
+                switchScreen('screen-home');
+            }
+        }
+
+        function finishGame() {
+            const correctCount = userAnswers.filter(a => a && a.isCorrect).length;
+            const total = playQueue.length;
+            
+            el.resultScore.textContent = correctCount;
+            el.resultTotal.textContent = total;
+
+            // 「間違えた問題を見直す」ボタンの制御
+            const hasIncorrect = userAnswers.some(a => a && !a.isCorrect);
+            const hasUnanswered = userAnswers.some(a => a === null);
+            
+            if (hasIncorrect || hasUnanswered) {
+                el.reviewBtn.classList.remove('hidden');
+            } else {
+                el.reviewBtn.classList.add('hidden');
+            }
+
+            switchScreen('screen-result');
+        }
+        
+        // Review Mode: Go to map
+        function reviewIncorrect() {
+            switchScreen('screen-quiz');
+            toggleMap(); // Open map to pick question
+        }
+
+        /* =========================================
+           MAP / OVERVIEW LOGIC
+           ========================================= */
+        function toggleMap() {
+            const isActive = el.modalOverlay.classList.contains('active');
+            if (!isActive) {
+                renderMap();
+                el.modalOverlay.classList.add('active');
+            } else {
+                el.modalOverlay.classList.remove('active');
+            }
+        }
+
+        function renderMap() {
+            el.mapGrid.innerHTML = '';
+            
+            // Stats in map
+            const answered = userAnswers.filter(a => a !== null);
+            const correct = answered.filter(a => a.isCorrect).length;
+            const rate = answered.length ? Math.round((correct/answered.length)*100) : 0;
+            el.mapStats.textContent = `現在正解率: ${rate}%`;
+
+            playQueue.forEach((_, idx) => {
+                const ans = userAnswers[idx];
+                const div = document.createElement('div');
+                div.className = 'map-item';
+                div.textContent = idx + 1;
+
+                if (idx === currentIndex) div.classList.add('current');
+
+                if (ans) {
+                    if (ans.isCorrect) div.classList.add('correct');
+                    else div.classList.add('incorrect');
+                }
+
+                div.onclick = () => {
+                    toggleMap(); // Close modal
+                    goToQuestion(idx);
+                };
+                el.mapGrid.appendChild(div);
+            });
+        }
+
+    </script>
+</body>
+</html>
