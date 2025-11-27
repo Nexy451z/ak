@@ -202,16 +202,13 @@
 </head>
 <body>
 
-    <!-- LOADING -->
     <div id="loading-overlay">
         <div class="spinner"></div>
         <div id="loading-text">読み込み中...</div>
     </div>
 
-    <!-- MAIN CONTAINER -->
     <div class="container">
         
-        <!-- 1. HOME SCREEN -->
         <div id="screen-home" class="screen">
             <div class="text-center mb-6">
                 <h1 class="text-2xl font-bold" style="color: var(--primary);">暗記アプリ</h1>
@@ -220,7 +217,6 @@
             <div id="quiz-list-container"></div>
         </div>
 
-        <!-- 2. MODE SELECTION SCREEN -->
         <div id="screen-mode" class="screen hidden">
             <div class="text-center mb-6">
                 <h2 id="selected-quiz-title" class="text-xl font-bold mb-2">問題集タイトル</h2>
@@ -256,9 +252,7 @@
             </button>
         </div>
 
-        <!-- 3. QUIZ SCREEN -->
         <div id="screen-quiz" class="screen hidden">
-            <!-- Header -->
             <div class="card" style="padding: 0.75rem 1.5rem; margin-bottom: 0.5rem;">
                 <div class="flex justify-between items-center">
                     <span id="quiz-badge" class="text-sm font-bold text-white px-2 py-1 rounded bg-blue-500">Category</span>
@@ -266,7 +260,6 @@
                 </div>
             </div>
 
-            <!-- Question Card -->
             <div class="card">
                 <div id="quiz-stats" class="text-xs text-sub text-right mb-2" style="min-height: 1.2em;"></div>
 
@@ -274,24 +267,20 @@
                     問題文がここに表示されます
                 </div>
 
-                <!-- Hint Button -->
                 <button id="hint-btn" class="btn btn-hint w-full" onclick="showHint()">
                     💡 答え・解説を見る
                 </button>
 
-                <!-- Options -->
                 <div id="options-container" class="options-grid"></div>
 
-                <!-- Feedback Area -->
                 <div id="feedback-area" class="hidden">
                     <div id="feedback-box" class="feedback-box">
                         <div id="feedback-title" class="text-xl font-bold mb-2"></div>
-                        <div id="feedback-text" class="text-sm text-main"></div>
+                        <div id="feedback-text" class="text-sm text-main" style="white-space: pre-wrap;"></div>
                     </div>
                 </div>
             </div>
             
-            <!-- Home Link -->
             <div class="text-center mt-2">
                 <button onclick="confirmExit()" class="text-sub text-sm underline" style="background:none; border:none; cursor:pointer;">
                     中断してホームへ戻る
@@ -299,7 +288,6 @@
             </div>
         </div>
 
-        <!-- 4. RESULT SCREEN -->
         <div id="screen-result" class="screen hidden">
             <div class="card text-center">
                 <h2 class="text-2xl font-bold mb-4">結果発表🎉</h2>
@@ -316,10 +304,7 @@
             </div>
         </div>
 
-    </div> <!-- End Container -->
-
-    <!-- FIXED FOOTER (Navigation) -->
-    <div id="quiz-footer" class="hidden">
+    </div> <div id="quiz-footer" class="hidden">
         <button id="nav-prev" class="nav-btn" onclick="navigate(-1)">
             <span>⬅️</span> 前へ
         </button>
@@ -333,7 +318,6 @@
         </button>
     </div>
 
-    <!-- MAP MODAL -->
     <div id="modal-overlay" onclick="toggleMap()">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-2">
@@ -345,8 +329,7 @@
                 <span id="map-stats">正解率: -%</span>
             </div>
             <div id="map-grid" class="map-grid">
-                <!-- Grid Items -->
-            </div>
+                </div>
         </div>
     </div>
 
@@ -362,6 +345,9 @@
         let currentMode = '';
         let stats = {};         // Persistent stats for local storage
         const STORAGE_KEY = 'anki_app_stats_pro_v1';
+        
+        // ラベル定義（ア、イ、ウ、エ）
+        const OPTION_LABELS = ['ア', 'イ', 'ウ', 'エ', 'オ'];
 
         // DOM Elements
         const el = {
@@ -585,7 +571,8 @@
             qData.options.forEach((opt, idx) => {
                 const btn = document.createElement('button');
                 btn.className = 'btn btn-option';
-                btn.dataset.prefix = ['A','B','C','D','E'][idx] || (idx+1);
+                // 【変更】A,B,C,D... -> ア,イ,ウ,エ...
+                btn.dataset.prefix = OPTION_LABELS[idx] || (idx + 1);
                 btn.textContent = opt;
                 
                 // Click Event
@@ -660,7 +647,10 @@
                 el.feedbackTitle.style.color = 'var(--error-text)';
             }
             
-            el.feedbackText.textContent = qData.explanation;
+            // 【変更】正解ラベルの取得と表示形式の作成
+            const correctIdx = qData.options.indexOf(qData.correctAnswer);
+            const correctLabel = OPTION_LABELS[correctIdx] || '';
+            el.feedbackText.textContent = `正解は ${correctLabel}. ${qData.correctAnswer} です。\n\n${qData.explanation}`;
         }
 
         // Restore visual state from history
@@ -677,7 +667,12 @@
             el.feedbackBox.className = 'feedback-box info';
             el.feedbackTitle.textContent = '💡 答えと解説';
             el.feedbackTitle.style.color = 'var(--accent)';
-            el.feedbackText.textContent = `正解は「${qData.correctAnswer}」です。\n\n${qData.explanation}`;
+            
+            // 【変更】正解ラベルの取得と表示形式の作成
+            const correctIdx = qData.options.indexOf(qData.correctAnswer);
+            const correctLabel = OPTION_LABELS[correctIdx] || '';
+            
+            el.feedbackText.textContent = `正解は ${correctLabel}. ${qData.correctAnswer} です。\n\n${qData.explanation}`;
             el.hintBtn.classList.add('hidden');
         }
 
