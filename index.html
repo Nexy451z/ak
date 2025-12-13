@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗記アプリ</title>
+    <title>暗記アプリ - 総合復習対応版</title>
     <style>
         /* --- CSS Variables & Base Styles --- */
         :root {
@@ -198,6 +198,30 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* --- 新機能: 複数選択用スタイル --- */
+        .quiz-item-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .quiz-checkbox {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+        .quiz-card-clickable {
+            flex: 1;
+            background: var(--card-bg); 
+            border-radius: 1rem; 
+            padding: 1.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .quiz-card-clickable:active { transform: scale(0.98); }
+
     </style>
 </head>
 <body>
@@ -213,6 +237,18 @@
             <div class="text-center mb-6">
                 <h1 class="text-2xl font-bold" style="color: var(--primary);">暗記アプリ</h1>
                 <p class="text-sub">学習する問題集を選んでください</p>
+            </div>
+            
+            <div class="card mb-4" style="padding: 1rem; background-color: #f0f9ff; border: 1px solid #bae6fd;">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-bold text-sm">総合復習・選択学習</span>
+                    <button onclick="toggleSelectAll()" class="text-sm text-primary underline" style="background:none; border:none; color:var(--primary); cursor:pointer;">
+                        すべて選択/解除
+                    </button>
+                </div>
+                <button id="btn-start-mixed" onclick="startMixedQuiz()" class="btn btn-primary" disabled>
+                    選択した問題集で開始 (0)
+                </button>
             </div>
             <div id="quiz-list-container"></div>
         </div>
@@ -346,7 +382,7 @@
         let stats = {};         // Persistent stats for local storage
         const STORAGE_KEY = 'anki_app_stats_pro_v1';
         
-        // ラベル定義（ア、イ、ウ、エ）
+        // ラベル定義
         const OPTION_LABELS = ['ア', 'イ', 'ウ', 'エ', 'オ'];
 
         // DOM Elements
@@ -397,7 +433,7 @@
         async function initApp() {
             loadStats();
             try {
-                // JSONファイル取得 (同じ階層にあると仮定)
+                // JSONファイル取得
                 const res = await fetch('./quiz_list.json');
                 if (!res.ok) throw new Error('quiz_list.json Not Found');
                 quizList = await res.json();
@@ -406,9 +442,6 @@
             } catch (e) {
                 el.loadingText.innerHTML = `エラーが発生しました<br><span style="font-size:0.8em">${e.message}</span>`;
                 console.error(e);
-                if (window.location.protocol === 'file:') {
-                    alert('【注意】ローカルファイル(file://)では外部JSONを読み込めない場合があります。VS CodeのLive Serverなどを使用してください。');
-                }
             }
         }
 
@@ -449,7 +482,7 @@
         function hideLoading() { el.loading.classList.add('hidden'); }
 
         /* =========================================
-           QUIZ SELECTION Logic
+           QUIZ SELECTION Logic (Enhanced)
            ========================================= */
         function renderQuizList() {
             el.quizList.innerHTML = '';
@@ -457,19 +490,40 @@
                 el.quizList.innerHTML = '<p class="text-center">問題集が見つかりません。</p>';
                 return;
             }
-            quizList.forEach(quiz => {
+            
+            quizList.forEach((quiz, index) => {
+                // ラッパー作成
+                const wrapper = document.createElement('div');
+                wrapper.className = 'quiz-item-wrapper';
+
+                // チェックボックス作成
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'quiz-checkbox';
+                checkbox.value = index; 
+                checkbox.onchange = updateMixedButtonState;
+
+                // カード作成（クリック可能エリア）
                 const div = document.createElement('div');
-                div.className = 'card';
-                div.style.cursor = 'pointer';
+                div.className = 'quiz-card-clickable';
                 div.innerHTML = `
                     <h3 class="text-xl font-bold" style="margin:0 0 0.5rem 0; color:var(--primary)">${quiz.title}</h3>
                     <p class="text-sub" style="margin:0">${quiz.description || ''}</p>
                 `;
-                div.onclick = () => selectQuiz(quiz);
-                el.quizList.appendChild(div);
+                
+                // カードクリックは単体学習開始
+                div.onclick = (e) => {
+                    // チェックボックス操作時は発火しない
+                    if(e.target !== checkbox) selectQuiz(quiz);
+                };
+
+                wrapper.appendChild(checkbox);
+                wrapper.appendChild(div);
+                el.quizList.appendChild(wrapper);
             });
         }
 
+        // 単体選択時のロジック
         async function selectQuiz(quizInfo) {
             showLoading('データを取得中...');
             try {
@@ -487,27 +541,77 @@
         }
 
         /* =========================================
+           MIXED MODE LOGIC (NEW)
+           ========================================= */
+        function updateMixedButtonState() {
+            const checkboxes = document.querySelectorAll('.quiz-checkbox:checked');
+            const btn = document.getElementById('btn-start-mixed');
+            btn.textContent = `選択した問題集で開始 (${checkboxes.length})`;
+            btn.disabled = checkboxes.length === 0;
+            btn.style.opacity = checkboxes.length === 0 ? 0.5 : 1;
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('.quiz-checkbox');
+            const allChecked = Array.from(checkboxes).every(c => c.checked);
+            checkboxes.forEach(c => c.checked = !allChecked);
+            updateMixedButtonState();
+        }
+
+        async function startMixedQuiz() {
+            const checkboxes = document.querySelectorAll('.quiz-checkbox:checked');
+            if (checkboxes.length === 0) return;
+
+            showLoading('複数の問題集を結合中...');
+            
+            try {
+                const selectedIndexes = Array.from(checkboxes).map(c => parseInt(c.value));
+                // 並列でJSON取得
+                const fetchPromises = selectedIndexes.map(idx => {
+                    const qInfo = quizList[idx];
+                    return fetch('./' + qInfo.file).then(r => r.json());
+                });
+
+                const results = await Promise.all(fetchPromises);
+
+                // 問題データを結合
+                let combinedQuestions = [];
+                results.forEach(json => {
+                    combinedQuestions = combinedQuestions.concat(json.questions);
+                });
+
+                if (combinedQuestions.length === 0) throw new Error('問題が含まれていません');
+
+                rawQuizData = combinedQuestions;
+                el.selectedTitle.textContent = `総合復習 (${results.length}冊分)`;
+                
+                hideLoading();
+                switchScreen('screen-mode');
+
+            } catch (e) {
+                hideLoading();
+                alert('読み込みエラー: ' + e.message);
+            }
+        }
+
+        /* =========================================
            GAMEPLAY LOGIC
            ========================================= */
         function startQuiz(mode) {
             currentMode = mode;
             currentIndex = 0;
 
-            // Generate Queue
             if (mode === 'random') {
                 playQueue = rawQuizData.map((_, i) => i);
                 shuffleArray(playQueue);
             } else if (mode === 'sequential') {
                 playQueue = rawQuizData.map((_, i) => i);
             } else if (mode === 'infinite') {
-                // Infinite: creates a buffer, will be replenished
                 playQueue = rawQuizData.map((_, i) => i);
                 shuffleArray(playQueue);
             }
 
-            // Initialize User Answers (Fill with null)
             userAnswers = new Array(playQueue.length).fill(null);
-
             el.retryBtn.onclick = () => startQuiz(mode);
             switchScreen('screen-quiz');
             goToQuestion(0);
@@ -520,19 +624,15 @@
             }
         }
 
-        // --- Main Display Function ---
         function goToQuestion(index) {
-            // Boundary Checks
             if (index < 0) return;
             
-            // If Infinite mode and end reached, reshuffle and extend/reset
+            // Infinite mode extension
             if (currentMode === 'infinite' && index >= playQueue.length) {
                 let newBatch = rawQuizData.map((_, i) => i);
                 shuffleArray(newBatch);
                 playQueue = playQueue.concat(newBatch);
-                // userAnswers need to extend too
-                const extension = new Array(newBatch.length).fill(null);
-                userAnswers = userAnswers.concat(extension);
+                userAnswers = userAnswers.concat(new Array(newBatch.length).fill(null));
             } else if (currentMode !== 'infinite' && index >= playQueue.length) {
                 finishGame();
                 return;
@@ -541,7 +641,7 @@
             currentIndex = index;
             const dataIndex = playQueue[currentIndex];
             const qData = rawQuizData[dataIndex];
-            const history = userAnswers[currentIndex]; // Check if answered
+            const history = userAnswers[currentIndex];
 
             // UI Reset
             el.feedbackArea.classList.add('hidden');
@@ -560,70 +660,46 @@
                 el.progress.textContent = `Question ${currentIndex + 1} / ${playQueue.length}`;
             }
 
-            // Update Stats
+            // Stats
             const s = stats[qData.id];
             el.stats.textContent = s ? `過去の正答率: ${Math.round((s.correct/s.total)*100)}%` : '';
 
-            // Text
+            // Question & Options
             el.question.textContent = qData.question;
 
-            // Create Options
             qData.options.forEach((opt, idx) => {
                 const btn = document.createElement('button');
                 btn.className = 'btn btn-option';
-                // 【変更】A,B,C,D... -> ア,イ,ウ,エ...
                 btn.dataset.prefix = OPTION_LABELS[idx] || (idx + 1);
                 btn.textContent = opt;
-                
-                // Click Event
                 btn.onclick = () => checkAnswer(currentIndex, opt, btn);
-                
                 el.options.appendChild(btn);
             });
 
-            // If already answered, restore state
-            if (history) {
-                restoreAnswerState(history, qData);
-            }
-
+            if (history) restoreAnswerState(history, qData);
             updateFooterUI();
         }
 
-        // --- Handling Answers ---
         function checkAnswer(qIndex, selectedOption, clickedBtn) {
             const dataIndex = playQueue[qIndex];
             const qData = rawQuizData[dataIndex];
             const isCorrect = (selectedOption === qData.correctAnswer);
 
-            // Save State
-            userAnswers[qIndex] = {
-                selected: selectedOption,
-                isCorrect: isCorrect
-            };
-
-            // Persistent Storage (Save stats)
+            userAnswers[qIndex] = { selected: selectedOption, isCorrect: isCorrect };
             saveResultToStorage(qData.id, isCorrect);
-
-            // Visual Update
             renderFeedback(isCorrect, qData, selectedOption);
-            updateFooterUI(); // update map button color etc
+            updateFooterUI();
         }
 
-        // Render feedback (used by both new answer and history restore)
         function renderFeedback(isCorrect, qData, selectedOption) {
             const allBtns = el.options.querySelectorAll('button');
-            
-            // Lock UI
             allBtns.forEach(b => b.disabled = true);
             el.options.classList.add('options-dimmed');
             el.hintBtn.classList.add('hidden');
             el.feedbackArea.classList.remove('hidden');
 
-            // Find clicked/selected button
             let targetBtn = null;
-            allBtns.forEach(b => {
-                if (b.textContent === selectedOption) targetBtn = b;
-            });
+            allBtns.forEach(b => { if (b.textContent === selectedOption) targetBtn = b; });
 
             if (isCorrect) {
                 if (targetBtn) {
@@ -635,7 +711,6 @@
                 el.feedbackTitle.style.color = 'var(--success-text)';
             } else {
                 if (targetBtn) targetBtn.classList.add('incorrect');
-                // Highlight real answer
                 allBtns.forEach(b => {
                     if(b.textContent === qData.correctAnswer) {
                         b.classList.add('correct');
@@ -647,18 +722,15 @@
                 el.feedbackTitle.style.color = 'var(--error-text)';
             }
             
-            // 【変更】正解ラベルの取得と表示形式の作成
             const correctIdx = qData.options.indexOf(qData.correctAnswer);
             const correctLabel = OPTION_LABELS[correctIdx] || '';
             el.feedbackText.textContent = `正解は ${correctLabel}. ${qData.correctAnswer} です。\n\n${qData.explanation}`;
         }
 
-        // Restore visual state from history
         function restoreAnswerState(history, qData) {
             renderFeedback(history.isCorrect, qData, history.selected);
         }
 
-        // Show Hint (Give up)
         function showHint() {
             const dataIndex = playQueue[currentIndex];
             const qData = rawQuizData[dataIndex];
@@ -668,7 +740,6 @@
             el.feedbackTitle.textContent = '💡 答えと解説';
             el.feedbackTitle.style.color = 'var(--accent)';
             
-            // 【変更】正解ラベルの取得と表示形式の作成
             const correctIdx = qData.options.indexOf(qData.correctAnswer);
             const correctLabel = OPTION_LABELS[correctIdx] || '';
             
@@ -680,26 +751,18 @@
            NAVIGATION HANDLERS
            ========================================= */
         function navigate(direction) {
-            // direction: -1 (prev) or 1 (next)
             const target = currentIndex + direction;
             goToQuestion(target);
         }
 
         function updateFooterUI() {
-            // Prev Button
             el.navPrev.disabled = (currentIndex === 0);
-
-            // Next Button Text logic
             const isLast = (currentMode !== 'infinite' && currentIndex === playQueue.length - 1);
             const hasAnswer = userAnswers[currentIndex] !== null;
 
-            const nextBtnSpan = el.navNext.querySelector('span');
-            
             if (isLast) {
-                // Last Question
                 el.navNext.innerHTML = hasAnswer ? '結果へ <span>🏁</span>' : '終了 <span>🏁</span>';
             } else {
-                // Normal
                 el.navNext.innerHTML = '次へ <span>➡️</span>';
             }
         }
@@ -717,7 +780,6 @@
             el.resultScore.textContent = correctCount;
             el.resultTotal.textContent = total;
 
-            // 「間違えた問題を見直す」ボタンの制御
             const hasIncorrect = userAnswers.some(a => a && !a.isCorrect);
             const hasUnanswered = userAnswers.some(a => a === null);
             
@@ -726,14 +788,12 @@
             } else {
                 el.reviewBtn.classList.add('hidden');
             }
-
             switchScreen('screen-result');
         }
         
-        // Review Mode: Go to map
         function reviewIncorrect() {
             switchScreen('screen-quiz');
-            toggleMap(); // Open map to pick question
+            toggleMap(); 
         }
 
         /* =========================================
@@ -751,8 +811,6 @@
 
         function renderMap() {
             el.mapGrid.innerHTML = '';
-            
-            // Stats in map
             const answered = userAnswers.filter(a => a !== null);
             const correct = answered.filter(a => a.isCorrect).length;
             const rate = answered.length ? Math.round((correct/answered.length)*100) : 0;
@@ -772,13 +830,12 @@
                 }
 
                 div.onclick = () => {
-                    toggleMap(); // Close modal
+                    toggleMap();
                     goToQuestion(idx);
                 };
                 el.mapGrid.appendChild(div);
             });
         }
-
     </script>
 </body>
 </html>
